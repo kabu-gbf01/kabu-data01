@@ -2,15 +2,20 @@ name: Daily Stock Fetch
 
 on:
   schedule:
-    # 平日 15:35 JST = 06:35 UTC（土日は fetch_and_commit.py 内でスキップ）
+    # 平日 15:35 JST = 06:35 UTC
     - cron: "35 6 * * 1-5"
-  workflow_dispatch:  # 手動実行ボタン
+  workflow_dispatch:
+    inputs:
+      skip_weekend:
+        description: "土日をスキップする (true/false)"
+        required: false
+        default: "false"   # 手動実行時はデフォルトで土日も取得
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # CSV を commit/push するために必要
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -26,6 +31,9 @@ jobs:
         run: pip install -r requirements.txt pytz
 
       - name: Run fetcher
+        env:
+          # 手動実行時は inputs から、自動実行時は true（平日のみ）
+          SKIP_WEEKEND: ${{ github.event.inputs.skip_weekend || 'true' }}
         run: python core/fetch_and_commit.py
 
       - name: Commit and push CSV
@@ -33,6 +41,5 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add output/
-          # 変更がなければ空コミットを避ける
           git diff --cached --quiet || git commit -m "chore: daily fetch $(date +'%Y-%m-%d')"
           git push
