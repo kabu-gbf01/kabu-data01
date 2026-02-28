@@ -5,10 +5,9 @@ output/tse_daily_YYYY-MM-DD.csv に保存する。
 """
 import os
 import sys
-from datetime import date, datetime
+from datetime import datetime
 import pytz
 
-# プロジェクトルートを sys.path に追加
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import OUTPUT_DIR, MARKET_MAP
@@ -17,16 +16,18 @@ from core.fetcher import load_stock_list, fetch_quotes, build_result_df
 JST = pytz.timezone("Asia/Tokyo")
 now = datetime.now(JST)
 
-# 土日はスキップ（Actions の cron は UTC 基準なので念のため JST でも確認）
-if now.weekday() >= 5:
+# 土日スキップ（SKIP_WEEKEND=false で無効化可能）
+skip_weekend = os.environ.get("SKIP_WEEKEND", "true").lower() == "true"
+if skip_weekend and now.weekday() >= 5:
     print(f"本日（{now.strftime('%Y-%m-%d %a')}）は土日のためスキップします")
+    print("土日も実行したい場合は workflow の SKIP_WEEKEND を false に設定してください")
     sys.exit(0)
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-today = now.strftime("%Y-%m-%d")
+today   = now.strftime("%Y-%m-%d")
 outfile = os.path.join(OUTPUT_DIR, f"tse_daily_{today}.csv")
 
-markets = list(MARKET_MAP.keys())  # 全市場
+markets = list(MARKET_MAP.keys())
 print(f"[{now.strftime('%H:%M JST')}] 取得開始: {markets}")
 
 stock_df  = load_stock_list(markets)
